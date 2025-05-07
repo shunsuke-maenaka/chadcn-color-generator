@@ -8,6 +8,13 @@ import {
   CardFooter,
 } from "./ui/card";
 import { Button } from "./ui/button";
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarMenu,
+  SidebarMenuAction,
+  SidebarProvider,
+} from "./ui/sidebar";
 
 export const Examples: FC = () => {
   return (

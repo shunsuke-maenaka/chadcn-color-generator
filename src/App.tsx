@@ -10,14 +10,8 @@ import { Button } from "./components/ui/button";
 import { Toggle } from "./components/ui/toggle";
 import { MoonIcon, SunIcon } from "lucide-react";
 
-interface Colors {
-  primaryColor: tinycolor.Instance;
-  secondaryColor?: tinycolor.Instance;
-  backgroundColor?: tinycolor.Instance;
-}
-
 const setBrightness = (color: tinycolor.Instance, brightness: number) => {
-  const hsl = color.toHsl();
+  const hsl = color.clone().toHsl();
   const newColor = tinycolor.fromRatio({
     h: hsl.h,
     s: hsl.s,
@@ -27,50 +21,57 @@ const setBrightness = (color: tinycolor.Instance, brightness: number) => {
   return newColor;
 };
 
+interface ColorTheme {
+  primaryColor: tinycolor.Instance;
+  secondaryColor: tinycolor.Instance;
+  backgroundColor: tinycolor.Instance;
+  isDark: boolean;
+}
+
 function App() {
-  const [primary, setPrimary] = useState<tinycolor.Instance>(
-    tinycolor("#000000")
-  );
-  const [secondary, setSecondary] = useState<tinycolor.Instance | undefined>(
-    undefined
-  );
-  const [background, setBackground] = useState<tinycolor.Instance | undefined>(
-    undefined
-  );
-  const [isDark, setIsDark] = useState(false);
+  const [colorTheme, setColorTheme] = useState<ColorTheme>({
+    primaryColor: tinycolor("#2020AA"),
+    secondaryColor: tinycolor("#2020AA").complement(),
+    backgroundColor: tinycolor("#FFFFFF"),
+    isDark: false,
+  });
 
   const generateColors = useCallback(
-    ({
-      primaryColor,
-      secondaryColor: secondaryBase,
-      backgroundColor,
-    }: Colors) => {
-      // ベースカラーから一貫したテーマを生成するため
-      const base = primaryColor.clone();
-
+    ({ primaryColor, secondaryColor, backgroundColor, isDark }: ColorTheme) => {
       // CSS変数名と色変換ロジックのマッピング
       type ThemeMap = Record<string, string>;
-      const backgroundColorString = backgroundColor
-        ? backgroundColor.toHexString()
-        : setBrightness(base, 95).toHexString();
+      const backgroundColorString = backgroundColor.toHexString();
       const foregroundColor = getContrastForeground(backgroundColorString);
       const primaryString = primaryColor.toHexString();
       const primaryForegroundString = getContrastForeground(primaryString);
-      const secondaryColor = secondaryBase
-        ? secondaryBase
-        : primaryColor.clone().spin(180);
       const secondaryString = secondaryColor.toHexString();
       const secondaryForegroundString = getContrastForeground(secondaryString);
-      const cardColorString = primaryColor
+      const cardColorString = backgroundColor
         .clone()
         .lighten(isDark ? 5 : -5)
         .toHexString();
       const cardForegroundString = getContrastForeground(cardColorString);
-      const mutedColor = primaryColor.clone().setAlpha(0.5);
-      const mutedString = mutedColor.toHex8String();
+      const mutedColor = primaryColor.clone().saturate(-30);
+      const mutedForegroundString = getContrastForeground(
+        backgroundColorString,
+        ["#AAA", "#666"]
+      );
+      const mutedString = mutedColor.toHexString();
       const accentColor = primaryColor.clone().saturate(40).lighten(30);
       const accentString = accentColor.toHexString();
       const accentForegroundString = getContrastForeground(accentString);
+      const sidebarColor = setBrightness(
+        backgroundColor.clone(),
+        isDark ? 5 : 95
+      );
+      const sidebarString = sidebarColor.toHexString();
+      const sidebarForegroundString = getContrastForeground(
+        sidebarColor.toHexString()
+      );
+      const sidebarPrimaryColor = primaryColor.clone().saturate(20).lighten(10);
+      const sidebarPrimaryString = sidebarPrimaryColor.toHexString();
+      const sidebarPrimaryForegroundString =
+        getContrastForeground(sidebarPrimaryString);
       const themeMap: ThemeMap = {
         "--radius": "0.5rem",
         "--background": backgroundColorString,
@@ -85,7 +86,7 @@ function App() {
         "--secondary": secondaryString,
         "--secondary-foreground": secondaryForegroundString,
         "--muted": mutedString,
-        "--muted-foreground": primaryForegroundString,
+        "--muted-foreground": mutedForegroundString,
         "--accent": accentString,
         "--accent-foreground": accentForegroundString,
         "--destructive": primaryColor
@@ -101,26 +102,31 @@ function App() {
         "--border": primaryColor.clone().darken(10).toHexString(),
         "--input": primaryColor.clone().darken(5).toHexString(),
         "--ring": primaryColor.clone().lighten(10).toHexString(),
-        "--chart-1": primaryColor.clone().saturate(50).toHexString(),
-        "--chart-2": primaryColor.clone().spin(90).toHexString(),
-        "--chart-3": primaryColor.clone().spin(180).toHexString(),
-        "--chart-4": primaryColor.clone().spin(270).toHexString(),
+        "--chart-1": primaryColor
+          .clone()
+          .spin((360 * 1) / 5)
+          .toHexString(),
+        "--chart-2": primaryColor
+          .clone()
+          .spin((360 * 2) / 5)
+          .toHexString(),
+        "--chart-3": primaryColor
+          .clone()
+          .spin((360 * 3) / 5)
+          .toHexString(),
+        "--chart-4": primaryColor
+          .clone()
+          .spin((360 * 4) / 5)
+          .toHexString(),
         "--chart-5": primaryColor
           .clone()
           .saturate(30)
           .lighten(30)
           .toHexString(),
-        "--sidebar": primaryColor.clone().lighten(95).toHexString(),
-        "--sidebar-foreground": primaryColor.clone().darken(80).toHexString(),
-        "--sidebar-primary": primaryColor
-          .clone()
-          .saturate(20)
-          .lighten(20)
-          .toHexString(),
-        "--sidebar-primary-foreground": primaryColor
-          .clone()
-          .complement()
-          .toHexString(),
+        "--sidebar": sidebarString,
+        "--sidebar-foreground": sidebarForegroundString,
+        "--sidebar-primary": sidebarPrimaryString,
+        "--sidebar-primary-foreground": sidebarPrimaryForegroundString,
         "--sidebar-accent": primaryColor.clone().saturate(40).toHexString(),
         "--sidebar-accent-foreground": primaryColor
           .clone()
@@ -146,25 +152,10 @@ function App() {
         .join(";\n");
       return colorStrings;
     },
-    [isDark]
+    []
   );
 
-  const [colorStrings, setColorStrings] = useState<string>(
-    generateColors({
-      primaryColor: primary,
-      secondaryColor: secondary,
-      backgroundColor: background,
-    })
-  );
-
-  useEffect(() => {
-    const colorStrings = generateColors({
-      primaryColor: primary,
-      secondaryColor: secondary,
-      backgroundColor: background,
-    });
-    setColorStrings(colorStrings);
-  }, [primary, secondary, background, generateColors]);
+  const colorStrings = generateColors(colorTheme);
 
   return (
     <div className="h-screen min-h-screen w-screen flex flex-row items-center justify-center gap-4 p-6">
@@ -172,66 +163,79 @@ function App() {
         <SidebarContent className="p-4">
           <Toggle
             variant="outline"
-            onPressedChange={(value) => setIsDark(value)}
+            onPressedChange={(value) => {
+              setColorTheme((cur) => ({
+                ...cur,
+                backgroundColor: setBrightness(
+                  cur.primaryColor.clone(),
+                  value ? 10 : 90
+                ),
+                isDark: value,
+              }));
+            }}
           >
-            {isDark ? <MoonIcon /> : <SunIcon />} {isDark ? "Dark" : "Light"}
+            {colorTheme.isDark ? <MoonIcon /> : <SunIcon />} switch to{" "}
+            {!colorTheme.isDark ? "Dark" : "Light"}
           </Toggle>
           <div className="flex flex-col gap-1">
             <p>Primary Color</p>
             <ColorPickerPopover
-              value={primary}
-              onChange={(colorValue) => {
-                const newColor = tinycolor(colorValue.hex);
-                setPrimary(newColor);
-                const colorStrings = generateColors({
+              value={colorTheme.primaryColor}
+              onChange={(newColor) => {
+                setColorTheme((prev) => ({
+                  ...prev,
                   primaryColor: newColor,
-                  secondaryColor: secondary,
-                  backgroundColor: background,
-                });
-                setColorStrings(colorStrings);
+                }));
               }}
             />
           </div>
           <div className="flex flex-col gap-1">
             <p>Secondary Color</p>
             <ColorPickerPopover
-              value={secondary ?? primary.complement()}
-              onChange={(colorValue) => {
-                const newColor = tinycolor(colorValue.hex);
-                setSecondary(newColor);
-                const colorStrings = generateColors({
-                  primaryColor: primary,
+              value={colorTheme.secondaryColor}
+              onChange={(newColor) => {
+                setColorTheme((prev) => ({
+                  ...prev,
                   secondaryColor: newColor,
-                  backgroundColor: background,
-                });
-                setColorStrings(colorStrings);
+                }));
               }}
             />
-            <Button onClick={() => setSecondary(primary.complement())}>
+            <Button
+              onClick={() =>
+                setColorTheme((prev) => ({
+                  ...prev,
+                  secondaryColor: prev.primaryColor.clone().complement(),
+                }))
+              }
+            >
               Generate Primary's complement
             </Button>
           </div>
           <div className="flex flex-col gap-1">
             <p>Background Color</p>
             <ColorPickerPopover
-              value={background ?? setBrightness(primary, 95)}
-              onChange={(colorValue) => {
-                const newColor = tinycolor(colorValue.hex);
-                setBackground(newColor);
-                const colorStrings = generateColors({
-                  primaryColor: primary,
-                  secondaryColor: secondary,
+              value={colorTheme.backgroundColor}
+              onChange={(newColor) => {
+                setColorTheme((prev) => ({
+                  ...prev,
                   backgroundColor: newColor,
-                });
-                setColorStrings(colorStrings);
+                }));
               }}
             />
             <Button
               onClick={() =>
-                setBackground(setBrightness(primary, isDark ? 10 : 90))
+                setColorTheme((prev) => ({
+                  ...prev,
+                  backgroundColor: setBrightness(
+                    prev.primaryColor.clone(),
+                    prev.isDark ? 10 : 95
+                  ),
+                }))
               }
             >
-              {`Generate Primary's ${isDark ? "darkened" : "lightened"}`}
+              {`Generate Primary's ${
+                colorTheme.isDark ? "darkened" : "lightened"
+              }`}
             </Button>
           </div>
           <SyntaxHighlighter language="css" className="text-xs">
